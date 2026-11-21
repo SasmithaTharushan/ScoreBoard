@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /matches/{matchId} {
+      // Anyone can watch a scoreboard.
+      allow read: if true;
+
+      // Signed-in users can create matches they own.
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && validMatch(request.resource.data);
+
+      // Only the owner can score, and ownership can't be transferred.
+      allow update: if request.auth != null
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && validMatch(request.resource.data);
+
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    function validMatch(d) {
+      return d.teamA is string && d.teamA.size() <= 60
+        && d.teamB is string && d.teamB.size() <= 60
+        && d.title is string && d.title.size() <= 120
+        && d.oversPerInnings is int && d.oversPerInnings >= 1 && d.oversPerInnings <= 100
+        && d.playersPerSide is int && d.playersPerSide >= 2 && d.playersPerSide <= 15
+        && d.balls is list && d.balls.size() <= 1500;
+    }
+  }
+}
