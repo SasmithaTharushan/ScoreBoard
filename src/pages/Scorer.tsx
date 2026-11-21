@@ -43,15 +43,18 @@ export default function Scorer() {
 
   const editing = useRef<keyof OnField | null>(null)
 
+  const striker = m?.onField.striker
+  const nonStriker = m?.onField.nonStriker
+  const bowler = m?.onField.bowler
+
   // keep the editable names in sync with the live document, without clobbering the box being typed in
   useEffect(() => {
-    if (!m) return
     setField((f) => {
-      const next = { ...m.onField }
+      const next: OnField = { striker: striker ?? '', nonStriker: nonStriker ?? '', bowler: bowler ?? '' }
       if (editing.current) next[editing.current] = f[editing.current]
       return next
     })
-  }, [m?.onField.striker, m?.onField.nonStriker, m?.onField.bowler])
+  }, [striker, nonStriker, bowler])
 
   if (authLoading || loading) return <div className="card animate-pulse text-sm text-slate-500">Loading scorer…</div>
   if (!user) return <Navigate to="/login" replace />
@@ -60,7 +63,10 @@ export default function Scorer() {
   if (m.ownerId !== user.uid)
     return (
       <div className="card">
-        Only the person who created this match can score it. <Link to={`/match/${m.id}`} className="underline">Watch the scoreboard</Link>
+        Only the person who created this match can score it.{' '}
+        <Link to={`/match/${m.id}`} className="underline">
+          Watch the scoreboard
+        </Link>
       </div>
     )
 
@@ -108,7 +114,9 @@ export default function Scorer() {
     <div className="mx-auto max-w-2xl space-y-4 pb-24">
       <div className="flex items-center gap-2">
         <h1 className="mr-auto text-lg font-bold">Scorer</h1>
-        <Link to={`/match/${m.id}`} className="btn-ghost">Public view ↗</Link>
+        <Link to={`/match/${m.id}`} className="btn-ghost">
+          Public view ↗
+        </Link>
       </div>
 
       <LiveCard m={m} state={state} />
@@ -126,7 +134,9 @@ export default function Scorer() {
                 const label = k === 'striker' ? 'Striker *' : k === 'nonStriker' ? 'Non-striker' : 'Bowler'
                 return (
                   <div key={k}>
-                    <label className="label" htmlFor={k}>{label}</label>
+                    <label className="label" htmlFor={k}>
+                      {label}
+                    </label>
                     {!isTyping ? (
                       <select
                         id={k}
@@ -183,7 +193,9 @@ export default function Scorer() {
             </div>
             <button
               className="text-xs text-emerald-600 underline"
-              onClick={() => act(() => ({ onField: { ...field, striker: field.nonStriker, nonStriker: field.striker } }))}
+              onClick={() =>
+                act(() => ({ onField: { ...field, striker: field.nonStriker, nonStriker: field.striker } }))
+              }
             >
               ⇄ Swap strike
             </button>
@@ -192,7 +204,11 @@ export default function Scorer() {
           <div className="card space-y-3">
             <div className="flex flex-wrap gap-2">
               {EXTRAS.map((x) => (
-                <button key={x.key} onClick={() => setExtra(extra === x.key ? null : x.key)} className={extra === x.key ? 'btn bg-amber-500 text-white' : 'btn-ghost'}>
+                <button
+                  key={x.key}
+                  onClick={() => setExtra(extra === x.key ? null : x.key)}
+                  className={extra === x.key ? 'btn bg-amber-500 text-white' : 'btn-ghost'}
+                >
                   {x.label}
                 </button>
               ))}
@@ -236,7 +252,11 @@ export default function Scorer() {
                 {['caught', 'run out', 'stumped'].includes(dismissal) && (
                   <div>
                     <label className="label" htmlFor="fielder">
-                      {dismissal === 'run out' ? 'Fielder (run out by)' : dismissal === 'stumped' ? 'Wicketkeeper' : 'Catcher'}
+                      {dismissal === 'run out'
+                        ? 'Fielder (run out by)'
+                        : dismissal === 'stumped'
+                          ? 'Wicketkeeper'
+                          : 'Catcher'}
                     </label>
                     <input
                       id="fielder"
@@ -262,7 +282,11 @@ export default function Scorer() {
                   disabled={busy}
                   onClick={() => record(r)}
                   className={`btn h-16 text-2xl font-black ${
-                    r === 4 ? 'bg-blue-600 text-white hover:bg-blue-500' : r === 6 ? 'bg-violet-600 text-white hover:bg-violet-500' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
+                    r === 4
+                      ? 'bg-blue-600 text-white hover:bg-blue-500'
+                      : r === 6
+                        ? 'bg-violet-600 text-white hover:bg-violet-500'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
                   }`}
                 >
                   {r}
@@ -289,7 +313,11 @@ export default function Scorer() {
       {msg && <p className="text-sm text-red-600">{msg}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button disabled={busy || (!m.balls.length && !m.closedInnings.length)} onClick={() => act(undo)} className="btn-ghost">
+        <button
+          disabled={busy || (!m.balls.length && !m.closedInnings.length)}
+          onClick={() => act(undo)}
+          className="btn-ghost"
+        >
           ↶ Undo last
         </button>
         {!done && (

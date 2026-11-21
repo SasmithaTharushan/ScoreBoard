@@ -34,7 +34,9 @@ export default function TvScoreboard() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 text-white">
         <p className="text-xl text-red-400">{error || 'Match not found.'}</p>
-        <Link to="/" className="btn-ghost">Back home</Link>
+        <Link to="/" className="btn-ghost">
+          Back home
+        </Link>
       </div>
     )
   }
@@ -81,7 +83,9 @@ export default function TvScoreboard() {
             <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-1.5">
               <img src={qrUrl} alt="Scan QR code" className="h-12 w-12 rounded" />
               <div className="pr-2 text-[10px] text-slate-400 leading-tight">
-                Scan for<br /><b className="text-white">Mobile View</b>
+                Scan for
+                <br />
+                <b className="text-white">Mobile View</b>
               </div>
             </div>
           )}
@@ -134,7 +138,8 @@ export default function TvScoreboard() {
 
             {state.status === 'innings-2' && state.requiredRuns !== null && (
               <div className="inline-block rounded-2xl bg-emerald-500/15 border border-emerald-500/30 px-6 py-3 text-xl font-bold text-emerald-300 sm:text-2xl">
-                Need {state.requiredRuns} run{state.requiredRuns === 1 ? '' : 's'} from {state.ballsRemaining} ball{state.ballsRemaining === 1 ? '' : 's'}
+                Need {state.requiredRuns} run{state.requiredRuns === 1 ? '' : 's'} from {state.ballsRemaining} ball
+                {state.ballsRemaining === 1 ? '' : 's'}
               </div>
             )}
           </div>
@@ -166,7 +171,8 @@ export default function TvScoreboard() {
                   <span className="font-bold text-emerald-300">{m.onField.striker || '—'} *</span>
                   {strikerStats && (
                     <span className="tabular font-semibold text-slate-300">
-                      {strikerStats.runs} <span className="text-sm font-normal text-slate-500">({strikerStats.ballsFaced})</span>
+                      {strikerStats.runs}{' '}
+                      <span className="text-sm font-normal text-slate-500">({strikerStats.ballsFaced})</span>
                     </span>
                   )}
                 </div>
@@ -174,7 +180,8 @@ export default function TvScoreboard() {
                   <span className="text-slate-300">{m.onField.nonStriker || '—'}</span>
                   {nonStrikerStats && (
                     <span className="tabular font-semibold text-slate-300">
-                      {nonStrikerStats.runs} <span className="text-sm font-normal text-slate-500">({nonStrikerStats.ballsFaced})</span>
+                      {nonStrikerStats.runs}{' '}
+                      <span className="text-sm font-normal text-slate-500">({nonStrikerStats.ballsFaced})</span>
                     </span>
                   )}
                 </div>
@@ -212,9 +219,7 @@ export default function TvScoreboard() {
             </div>
           </div>
 
-          <div className="text-xs text-slate-500">
-            ScoreBoard Live • Auto-updating
-          </div>
+          <div className="text-xs text-slate-500">ScoreBoard Live • Auto-updating</div>
         </div>
       </footer>
     </div>

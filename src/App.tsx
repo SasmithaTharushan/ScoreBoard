@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, Route, Routes } from 'react-router'
 import { useAuth } from './lib/auth'
 import { firebaseEnabled } from './lib/firebase'
 import { signOut } from './lib/store'
 import Home from './pages/Home'
-import Login from './pages/Login'
-import NewMatch from './pages/NewMatch'
 import MatchView from './pages/MatchView'
-import Scorer from './pages/Scorer'
-import TvScoreboard from './pages/TvScoreboard'
+
+const Login = lazy(() => import('./pages/Login'))
+const NewMatch = lazy(() => import('./pages/NewMatch'))
+const Scorer = lazy(() => import('./pages/Scorer'))
+const TvScoreboard = lazy(() => import('./pages/TvScoreboard'))
 
 function ThemeToggle() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -64,22 +65,27 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/new" element={<NewMatch />} />
-          <Route path="/match/:id" element={<MatchView />} />
-          <Route path="/match/:id/score" element={<Scorer />} />
-          <Route path="/match/:id/tv" element={<TvScoreboard />} />
-          <Route
-            path="*"
-            element={
-              <div className="card text-center">
-                Page not found. <Link to="/" className="text-emerald-600 underline">Go home</Link>
-              </div>
-            }
-          />
-        </Routes>
+        <Suspense fallback={<div className="card animate-pulse text-sm text-slate-500">Loading page…</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/new" element={<NewMatch />} />
+            <Route path="/match/:id" element={<MatchView />} />
+            <Route path="/match/:id/score" element={<Scorer />} />
+            <Route path="/match/:id/tv" element={<TvScoreboard />} />
+            <Route
+              path="*"
+              element={
+                <div className="card text-center">
+                  Page not found.{' '}
+                  <Link to="/" className="text-emerald-600 underline">
+                    Go home
+                  </Link>
+                </div>
+              }
+            />
+          </Routes>
+        </Suspense>
       </main>
       <footer className="py-6 text-center text-xs text-slate-500">
         ScoreBoard · ball-by-ball cricket scoring

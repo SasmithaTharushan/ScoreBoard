@@ -4,8 +4,8 @@ Score a cricket match ball by ball from your phone and share a link. Everyone wa
 
 **Stack:** React 19 · TypeScript · Vite · Tailwind CSS v4 · Firebase (Firestore + Auth) · installable PWA
 
-| Live scoreboard | Scorer panel |
-|---|---|
+| Live scoreboard                             | Scorer panel                            |
+| ------------------------------------------- | --------------------------------------- |
 | <img src="docs/scoreboard.png" width="300"> | <img src="docs/scorer.png" width="300"> |
 
 ## Features
@@ -50,13 +50,16 @@ The Firebase web config is safe to ship in the browser. Access is controlled by 
 ## Host it for free
 
 ### Option A — Firebase Hosting
+
 ```bash
 npm run build
 firebase deploy --only hosting     # → https://<project-id>.web.app
 ```
+
 Or run `npm run deploy` to build and deploy everything.
 
 ### Option B — Vercel
+
 1. Go to [vercel.com](https://vercel.com) → sign in with GitHub → **Add New → Project** → import this repo.
 2. Vercel detects Vite automatically. Under **Environment Variables**, add the six `VITE_FIREBASE_*` values.
 3. Click **Deploy**. Every push to `main` redeploys automatically.

@@ -25,7 +25,9 @@ export function StatusBadge({ state }: { state: MatchState }) {
     completed: ['Completed', 'bg-emerald-600 text-white'],
   } as const
   const [text, cls] = map[state.status]
-  return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${cls}`}>{text}</span>
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${cls}`}>{text}</span>
+  )
 }
 
 export function InningsLine({ m, inn, active }: { m: Match; inn: InningsSummary; active?: boolean }) {
@@ -125,7 +127,10 @@ export function InningsStats({ m, inn }: { m: Match; inn: InningsSummary }) {
     ['Run rate', inn.runRate.toFixed(2)],
     ['Fours', inn.fours],
     ['Sixes', inn.sixes],
-    ['Extras', `${inn.extras.total} (wd ${inn.extras.wd}, nb ${inn.extras.nb}, b ${inn.extras.b}, lb ${inn.extras.lb})`],
+    [
+      'Extras',
+      `${inn.extras.total} (wd ${inn.extras.wd}, nb ${inn.extras.nb}, b ${inn.extras.b}, lb ${inn.extras.lb})`,
+    ],
   ]
   return (
     <div className="card">
@@ -215,7 +220,8 @@ export function ScorecardTable({ m, inn }: { m: Match; inn: InningsSummary }) {
           <tfoot>
             <tr className="border-t border-slate-200 text-xs text-slate-500 dark:border-slate-800">
               <td colSpan={2} className="py-2 font-medium">
-                Extras: {inn.extras.total} (wd {inn.extras.wd}, nb {inn.extras.nb}, b {inn.extras.b}, lb {inn.extras.lb})
+                Extras: {inn.extras.total} (wd {inn.extras.wd}, nb {inn.extras.nb}, b {inn.extras.b}, lb {inn.extras.lb}
+                )
               </td>
               <td colSpan={5} className="py-2 text-right font-bold tabular text-slate-700 dark:text-slate-300">
                 Total: {inn.runs}/{inn.wickets} ({inn.overs} ov)

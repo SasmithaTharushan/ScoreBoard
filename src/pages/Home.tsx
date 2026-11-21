@@ -84,7 +84,9 @@ export default function Home() {
                     key={t}
                     onClick={() => setMine(t === 'Mine')}
                     className={`rounded-lg px-2.5 py-1 ${
-                      mine === (t === 'Mine') ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                      mine === (t === 'Mine')
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                     }`}
                   >
                     {t}
@@ -109,7 +111,14 @@ export default function Home() {
         {!matches && !error && <div className="card animate-pulse text-sm text-slate-500">Loading matches…</div>}
         {matches && list.length === 0 && (
           <div className="card text-center text-sm text-slate-500">
-            No matches yet. {user ? <Link to="/new" className="text-emerald-600 underline">Create the first one</Link> : 'Sign in to create one.'}
+            No matches yet.{' '}
+            {user ? (
+              <Link to="/new" className="text-emerald-600 underline">
+                Create the first one
+              </Link>
+            ) : (
+              'Sign in to create one.'
+            )}
           </div>
         )}
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -139,7 +148,9 @@ export default function Home() {
                     </span>
                   </div>
                 ))}
-                {s.result && <div className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{s.result}</div>}
+                {s.result && (
+                  <div className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{s.result}</div>
+                )}
               </Link>
             </li>
           ))}

@@ -17,11 +17,7 @@ export default function LiveCard({ m, state }: { m: Match; state: MatchState }) 
         </span>
         <StatusBadge state={state} />
       </div>
-      {m.toss && (
-        <div className="px-5 pt-1 text-[11px] text-emerald-300/90 font-medium">
-          🪙 {formatToss(m)}
-        </div>
-      )}
+      {m.toss && <div className="px-5 pt-1 text-[11px] text-emerald-300/90 font-medium">🪙 {formatToss(m)}</div>}
 
       {showCurrent ? (
         <div className="px-5 pb-4 pt-3">
@@ -55,8 +51,8 @@ export default function LiveCard({ m, state }: { m: Match; state: MatchState }) 
           </div>
           {state.status === 'innings-2' && state.requiredRuns !== null && (
             <div className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-sm">
-              Need <b>{state.requiredRuns}</b> run{state.requiredRuns === 1 ? '' : 's'} from <b>{state.ballsRemaining}</b>{' '}
-              ball{state.ballsRemaining === 1 ? '' : 's'}
+              Need <b>{state.requiredRuns}</b> run{state.requiredRuns === 1 ? '' : 's'} from{' '}
+              <b>{state.ballsRemaining}</b> ball{state.ballsRemaining === 1 ? '' : 's'}
             </div>
           )}
           {(m.onField.striker || m.onField.nonStriker || m.onField.bowler) && (

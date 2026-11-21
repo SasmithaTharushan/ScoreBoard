@@ -4,9 +4,21 @@ import { addBall, closeInnings, undo, type Delivery } from './scoring'
 
 function match(over: Partial<Match> = {}): Match {
   return {
-    id: 'm', ownerId: 'u', title: 'Test', venue: '', teamA: 'Sri Lanka', teamB: 'India',
-    battingFirst: 'A', oversPerInnings: 2, playersPerSide: 3, balls: [], closedInnings: [],
-    onField: { striker: 'S', nonStriker: 'N', bowler: 'B' }, createdAt: 0, updatedAt: 0, ...over,
+    id: 'm',
+    ownerId: 'u',
+    title: 'Test',
+    venue: '',
+    teamA: 'Sri Lanka',
+    teamB: 'India',
+    battingFirst: 'A',
+    oversPerInnings: 2,
+    playersPerSide: 3,
+    balls: [],
+    closedInnings: [],
+    onField: { striker: 'S', nonStriker: 'N', bowler: 'B' },
+    createdAt: 0,
+    updatedAt: 0,
+    ...over,
   }
 }
 const play = (m: Match, ...ds: Partial<Delivery>[]) =>
@@ -14,7 +26,14 @@ const play = (m: Match, ...ds: Partial<Delivery>[]) =>
 
 describe('scoring engine', () => {
   it('counts runs, extras and legal balls', () => {
-    const m = play(match(), { runs: 4 }, { extra: 'wd' }, { runs: 2, extra: 'nb' }, { runs: 1, extra: 'lb' }, { runs: 6 })
+    const m = play(
+      match(),
+      { runs: 4 },
+      { extra: 'wd' },
+      { runs: 2, extra: 'nb' },
+      { runs: 1, extra: 'lb' },
+      { runs: 6 },
+    )
     const s = computeState(m)
     const inn = s.innings[0]
     expect(inn.runs).toBe(4 + 1 + 3 + 1 + 6)
@@ -131,7 +150,7 @@ describe('scoring engine', () => {
     let m = match({ playersPerSide: 11, onField: { striker: 'Kusal', nonStriker: 'Pathum', bowler: 'Bumrah' } })
     m = play(m, { runs: 0, wicket: true, dismissal: 'bowled' })
     let state = computeState(m)
-    let kusal = state.innings[0].batting.find((b) => b.batter === 'Kusal')!
+    const kusal = state.innings[0].batting.find((b) => b.batter === 'Kusal')!
     expect(kusal.howOut).toBe('b Bumrah')
 
     m = { ...m, onField: { ...m.onField, striker: 'Charith' } }
@@ -164,7 +183,11 @@ describe('scoring engine', () => {
   })
 
   it('computes bowling scorecard with overs, maidens, runs conceded, wickets and economy', () => {
-    let m = match({ playersPerSide: 11, oversPerInnings: 5, onField: { striker: 'S', nonStriker: 'N', bowler: 'Bumrah' } })
+    let m = match({
+      playersPerSide: 11,
+      oversPerInnings: 5,
+      onField: { striker: 'S', nonStriker: 'N', bowler: 'Bumrah' },
+    })
     m = play(m, { runs: 0 }, { runs: 0 }, { runs: 0 }, { runs: 0 }, { runs: 0 }, { runs: 0 })
     let bwl = computeState(m).innings[0].bowling.find((b) => b.bowler === 'Bumrah')!
     expect(bwl.overs).toBe('1.0')
@@ -192,8 +215,15 @@ describe('scoring engine', () => {
 
   it('still loads old matches without batter/bowler/dismissal fields cleanly', () => {
     const oldMatch: Match = {
-      id: 'old', ownerId: 'u', title: 'Old Match', venue: '', teamA: 'A', teamB: 'B',
-      battingFirst: 'A', oversPerInnings: 2, playersPerSide: 3,
+      id: 'old',
+      ownerId: 'u',
+      title: 'Old Match',
+      venue: '',
+      teamA: 'A',
+      teamB: 'B',
+      battingFirst: 'A',
+      oversPerInnings: 2,
+      playersPerSide: 3,
       balls: [
         { id: 'b1', innings: 1, runs: 4, extra: null, wicket: false, t: 1000 },
         { id: 'b2', innings: 1, runs: 0, extra: 'wd', wicket: false, t: 2000 },
@@ -201,7 +231,8 @@ describe('scoring engine', () => {
       ],
       closedInnings: [],
       onField: { striker: '', nonStriker: '', bowler: '' },
-      createdAt: 0, updatedAt: 0,
+      createdAt: 0,
+      updatedAt: 0,
     }
     const state = computeState(oldMatch)
     expect(state.innings[0].runs).toBe(5)
@@ -232,12 +263,7 @@ describe('scoring engine', () => {
 
   it('exports ball-by-ball log as CSV', () => {
     let m = match({ onField: { striker: 'Kusal', nonStriker: 'Pathum', bowler: 'Bumrah' } })
-    m = play(
-      m,
-      { runs: 4 },
-      { runs: 0, extra: 'wd' },
-      { runs: 0, wicket: true, dismissal: 'bowled' },
-    )
+    m = play(m, { runs: 4 }, { runs: 0, extra: 'wd' }, { runs: 0, wicket: true, dismissal: 'bowled' })
     const csv = matchToCsv(m)
     const lines = csv.trim().split('\n')
     expect(lines).toHaveLength(4) // 1 header + 3 balls

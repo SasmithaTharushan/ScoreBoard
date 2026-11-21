@@ -15,9 +15,10 @@ export default function MatchView() {
   const [showQr, setShowQr] = useState(false)
   const [qrUrl, setQrUrl] = useState<string | null>(null)
 
+  const matchId = m?.id
   useEffect(() => {
-    if (!m) return
-    const url = window.location.origin + `/match/${m.id}`
+    if (!matchId) return
+    const url = window.location.origin + `/match/${matchId}`
     QRCode.toDataURL(url, {
       width: 240,
       margin: 2,
@@ -25,11 +26,19 @@ export default function MatchView() {
     })
       .then(setQrUrl)
       .catch(() => {})
-  }, [m?.id])
+  }, [matchId])
 
   if (loading) return <div className="card animate-pulse text-sm text-slate-500">Loading scoreboard…</div>
   if (error) return <div className="card text-sm text-red-600">{error}</div>
-  if (!m || !state) return <div className="card">Match not found. <Link to="/" className="underline">Back home</Link></div>
+  if (!m || !state)
+    return (
+      <div className="card">
+        Match not found.{' '}
+        <Link to="/" className="underline">
+          Back home
+        </Link>
+      </div>
+    )
 
   const share = async () => {
     const url = location.href.replace(/\/score$/, '')
@@ -75,9 +84,13 @@ export default function MatchView() {
         <button onClick={() => setShowQr(!showQr)} className="btn-ghost">
           {showQr ? 'Hide QR' : '📱 QR'}
         </button>
-        <button onClick={share} className="btn-ghost">{copied ? 'Link copied ✓' : 'Share'}</button>
+        <button onClick={share} className="btn-ghost">
+          {copied ? 'Link copied ✓' : 'Share'}
+        </button>
         {user?.uid === m.ownerId && (
-          <Link to={`/match/${m.id}/score`} className="btn-primary">Open scorer</Link>
+          <Link to={`/match/${m.id}/score`} className="btn-primary">
+            Open scorer
+          </Link>
         )}
       </div>
 

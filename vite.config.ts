@@ -26,5 +26,5 @@ export default defineConfig({
     }),
   ],
   build: { chunkSizeWarningLimit: 1000 }, // the Firebase SDK is most of the bundle
-  test: { environment: 'node' },
+  test: { environment: 'node', include: ['src/**/*.{test,spec}.{ts,tsx}'] },
 })

@@ -1,6 +1,6 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import type { FirebaseApp } from 'firebase/app'
+import type { Auth } from 'firebase/auth'
+import type { Firestore } from 'firebase/firestore'
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,14 +14,32 @@ const config = {
 /** True when Firebase keys are present. Without them the app runs in local demo mode. */
 export const firebaseEnabled = Boolean(config.apiKey && config.projectId)
 
-let app: FirebaseApp | null = null
-let auth: Auth | null = null
-let db: Firestore | null = null
-
-if (firebaseEnabled) {
-  app = initializeApp(config)
-  auth = getAuth(app)
-  db = getFirestore(app)
+export interface LazyFirebase {
+  app: FirebaseApp
+  auth: Auth
+  db: Firestore
+  firestore: typeof import('firebase/firestore')
+  authModule: typeof import('firebase/auth')
 }
 
-export { auth, db }
+let firebasePromise: Promise<LazyFirebase | null> | null = null
+
+export function getFirebase(): Promise<LazyFirebase | null> {
+  if (!firebaseEnabled) return Promise.resolve(null)
+  if (!firebasePromise) {
+    firebasePromise = (async () => {
+      const [{ initializeApp }, { getAuth }, authModule, { getFirestore }, firestore] = await Promise.all([
+        import('firebase/app'),
+        import('firebase/auth'),
+        import('firebase/auth'),
+        import('firebase/firestore'),
+        import('firebase/firestore'),
+      ])
+      const app = initializeApp(config)
+      const auth = getAuth(app)
+      const db = getFirestore(app)
+      return { app, auth, db, firestore, authModule }
+    })()
+  }
+  return firebasePromise
+}

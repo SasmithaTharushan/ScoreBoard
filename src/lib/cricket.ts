@@ -108,8 +108,7 @@ export interface MatchState {
 export const isLegal = (b: Pick<Ball, 'extra'>) => b.extra !== 'wd' && b.extra !== 'nb'
 
 /** Total runs a delivery adds to the batting side. */
-export const ballTotal = (b: Pick<Ball, 'runs' | 'extra'>) =>
-  b.runs + (b.extra === 'wd' || b.extra === 'nb' ? 1 : 0)
+export const ballTotal = (b: Pick<Ball, 'runs' | 'extra'>) => b.runs + (b.extra === 'wd' || b.extra === 'nb' ? 1 : 0)
 
 export const formatOvers = (legalBalls: number) => `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`
 
@@ -143,11 +142,7 @@ export function ballLabel(b: Ball): string {
   return b.wicket ? (s === '•' ? 'W' : `${s}W`) : s
 }
 
-export function formatHowOut(
-  dismissal: Dismissal | undefined,
-  bowler?: string,
-  fielder?: string,
-): string {
+export function formatHowOut(dismissal: Dismissal | undefined, bowler?: string, fielder?: string): string {
   const b = bowler?.trim()
   const f = fielder?.trim()
   switch (dismissal) {
@@ -303,11 +298,7 @@ function summarise(m: Match, no: InningsNo, target: number | null): InningsSumma
   for (const overBalls of overs_) {
     const legalCount = overBalls.filter(isLegal).length
     if (legalCount === 6) {
-      const bowlersInOver = new Set(
-        overBalls
-          .map((b) => b.bowler?.trim())
-          .filter(Boolean) as string[],
-      )
+      const bowlersInOver = new Set(overBalls.map((b) => b.bowler?.trim()).filter(Boolean) as string[])
       for (const bName of bowlersInOver) {
         const bowlerBalls = overBalls.filter((b) => b.bowler?.trim() === bName)
         const bowlerLegal = bowlerBalls.filter(isLegal).length

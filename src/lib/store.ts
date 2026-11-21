@@ -1,27 +1,7 @@
 // Data layer with two interchangeable backends:
-//  - Firebase (Firestore + Auth) when VITE_FIREBASE_* keys are set
+//  - Firebase (Firestore + Auth) lazily loaded when VITE_FIREBASE_* keys are set
 //  - Local demo mode (localStorage, synced across tabs) when they are not
-import {
-  collection,
-  deleteDoc,
-  doc,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  runTransaction,
-  setDoc,
-} from 'firebase/firestore'
-import {
-  GoogleAuthProvider,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut as fbSignOut,
-  updateProfile,
-} from 'firebase/auth'
-import { auth, db, firebaseEnabled } from './firebase'
+import { firebaseEnabled, getFirebase } from './firebase'
 import type { Match } from './cricket'
 
 export interface AppUser {
@@ -93,28 +73,40 @@ function readLocalUser(): AppUser | null {
 
 // ---------------------------------------------------------------- auth
 export function subscribeUser(cb: (u: AppUser | null) => void): Unsub {
-  if (firebaseEnabled && auth) {
-    return onAuthStateChanged(auth, (u) =>
-      cb(u ? { uid: u.uid, name: u.displayName || u.email?.split('@')[0] || 'Scorer', email: u.email } : null),
-    )
+  if (firebaseEnabled) {
+    let unsub: (() => void) | null = null
+    let cancelled = false
+    getFirebase().then((fb) => {
+      if (!fb || cancelled) return
+      unsub = fb.authModule.onAuthStateChanged(fb.auth, (u) =>
+        cb(u ? { uid: u.uid, name: u.displayName || u.email?.split('@')[0] || 'Scorer', email: u.email } : null),
+      )
+    })
+    return () => {
+      cancelled = true
+      unsub?.()
+    }
   }
   return watchLocal(() => cb(readLocalUser()))
 }
 
 export async function signInWithGoogle() {
-  if (!auth) throw new Error('Firebase is not configured')
-  await signInWithPopup(auth, new GoogleAuthProvider())
+  const fb = await getFirebase()
+  if (!fb) throw new Error('Firebase is not configured')
+  await fb.authModule.signInWithPopup(fb.auth, new fb.authModule.GoogleAuthProvider())
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  if (!auth) throw new Error('Firebase is not configured')
-  await signInWithEmailAndPassword(auth, email, password)
+  const fb = await getFirebase()
+  if (!fb) throw new Error('Firebase is not configured')
+  await fb.authModule.signInWithEmailAndPassword(fb.auth, email, password)
 }
 
 export async function signUpWithEmail(name: string, email: string, password: string) {
-  if (!auth) throw new Error('Firebase is not configured')
-  const cred = await createUserWithEmailAndPassword(auth, email, password)
-  if (name) await updateProfile(cred.user, { displayName: name })
+  const fb = await getFirebase()
+  if (!fb) throw new Error('Firebase is not configured')
+  const cred = await fb.authModule.createUserWithEmailAndPassword(fb.auth, email, password)
+  if (name) await fb.authModule.updateProfile(cred.user, { displayName: name })
 }
 
 export function signInDemo(name: string) {
@@ -123,31 +115,58 @@ export function signInDemo(name: string) {
 }
 
 export async function signOut() {
-  if (firebaseEnabled && auth) return fbSignOut(auth)
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) return fb.authModule.signOut(fb.auth)
+  }
   localStorage.removeItem(LS_USER)
   notify()
 }
 
 // ---------------------------------------------------------------- matches
 export function subscribeMatches(cb: (ms: Match[]) => void, onError?: (e: Error) => void): Unsub {
-  if (firebaseEnabled && db) {
-    const q = query(collection(db, 'matches'), orderBy('updatedAt', 'desc'), limit(50))
-    return onSnapshot(
-      q,
-      (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as Match), id: d.id }))),
-      (e) => onError?.(e),
-    )
+  if (firebaseEnabled) {
+    let unsub: (() => void) | null = null
+    let cancelled = false
+    getFirebase()
+      .then((fb) => {
+        if (!fb || cancelled) return
+        const { collection, orderBy, limit, query, onSnapshot } = fb.firestore
+        const q = query(collection(fb.db, 'matches'), orderBy('updatedAt', 'desc'), limit(50))
+        unsub = onSnapshot(
+          q,
+          (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as Match), id: d.id }))),
+          (e) => onError?.(e),
+        )
+      })
+      .catch((e) => onError?.(e))
+    return () => {
+      cancelled = true
+      unsub?.()
+    }
   }
   return watchLocal(() => cb(Object.values(readLocal()).sort((a, b) => b.updatedAt - a.updatedAt)))
 }
 
 export function subscribeMatch(id: string, cb: (m: Match | null) => void, onError?: (e: Error) => void): Unsub {
-  if (firebaseEnabled && db) {
-    return onSnapshot(
-      doc(db, 'matches', id),
-      (d) => cb(d.exists() ? { ...(d.data() as Match), id: d.id } : null),
-      (e) => onError?.(e),
-    )
+  if (firebaseEnabled) {
+    let unsub: (() => void) | null = null
+    let cancelled = false
+    getFirebase()
+      .then((fb) => {
+        if (!fb || cancelled) return
+        const { doc, onSnapshot } = fb.firestore
+        unsub = onSnapshot(
+          doc(fb.db, 'matches', id),
+          (d) => cb(d.exists() ? { ...(d.data() as Match), id: d.id } : null),
+          (e) => onError?.(e),
+        )
+      })
+      .catch((e) => onError?.(e))
+    return () => {
+      cancelled = true
+      unsub?.()
+    }
   }
   return watchLocal(() => cb(readLocal()[id] ?? null))
 }
@@ -156,27 +175,33 @@ export async function createMatch(user: AppUser, data: NewMatch): Promise<string
   const now = Date.now()
   const id = genId()
   const match: Match = { ...data, id, ownerId: user.uid, balls: [], closedInnings: [], createdAt: now, updatedAt: now }
-  if (firebaseEnabled && db) {
-    const { id: _omit, ...rest } = match
-    void _omit
-    await setDoc(doc(db, 'matches', id), rest)
-  } else {
-    writeLocal({ ...readLocal(), [id]: match })
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) {
+      const { id: _omit, ...rest } = match
+      void _omit
+      await fb.firestore.setDoc(fb.firestore.doc(fb.db, 'matches', id), rest)
+      return id
+    }
   }
+  writeLocal({ ...readLocal(), [id]: match })
   return id
 }
 
 /** Atomically read-modify-write a match (safe if two devices score at once). */
 export async function updateMatch(id: string, change: (m: Match) => Partial<Match>) {
-  if (firebaseEnabled && db) {
-    const ref = doc(db, 'matches', id)
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref)
-      if (!snap.exists()) throw new Error('Match not found')
-      const patch = change({ ...(snap.data() as Match), id })
-      tx.update(ref, { ...patch, updatedAt: Date.now() })
-    })
-    return
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) {
+      const ref = fb.firestore.doc(fb.db, 'matches', id)
+      await fb.firestore.runTransaction(fb.db, async (tx) => {
+        const snap = await tx.get(ref)
+        if (!snap.exists()) throw new Error('Match not found')
+        const patch = change({ ...(snap.data() as Match), id })
+        tx.update(ref, { ...patch, updatedAt: Date.now() })
+      })
+      return
+    }
   }
   const all = readLocal()
   const m = all[id]
@@ -186,7 +211,10 @@ export async function updateMatch(id: string, change: (m: Match) => Partial<Matc
 }
 
 export async function deleteMatch(id: string) {
-  if (firebaseEnabled && db) return deleteDoc(doc(db, 'matches', id))
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) return fb.firestore.deleteDoc(fb.firestore.doc(fb.db, 'matches', id))
+  }
   const all = readLocal()
   delete all[id]
   writeLocal(all)
@@ -194,13 +222,25 @@ export async function deleteMatch(id: string) {
 
 // ---------------------------------------------------------------- teams
 export function subscribeTeams(cb: (ts: Team[]) => void, onError?: (e: Error) => void): Unsub {
-  if (firebaseEnabled && db) {
-    const q = query(collection(db, 'teams'), orderBy('name', 'asc'), limit(100))
-    return onSnapshot(
-      q,
-      (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as Team), id: d.id }))),
-      (e) => onError?.(e),
-    )
+  if (firebaseEnabled) {
+    let unsub: (() => void) | null = null
+    let cancelled = false
+    getFirebase()
+      .then((fb) => {
+        if (!fb || cancelled) return
+        const { collection, orderBy, limit, query, onSnapshot } = fb.firestore
+        const q = query(collection(fb.db, 'teams'), orderBy('name', 'asc'), limit(100))
+        unsub = onSnapshot(
+          q,
+          (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as Team), id: d.id }))),
+          (e) => onError?.(e),
+        )
+      })
+      .catch((e) => onError?.(e))
+    return () => {
+      cancelled = true
+      unsub?.()
+    }
   }
   return watchLocal(() => cb(Object.values(readLocalTeams()).sort((a, b) => a.name.localeCompare(b.name))))
 }
@@ -216,20 +256,26 @@ export async function saveTeam(user: AppUser, data: { id?: string; name: string;
     createdAt: now,
     updatedAt: now,
   }
-  if (firebaseEnabled && db) {
-    const { id: _omit, ...rest } = team
-    void _omit
-    await setDoc(doc(db, 'teams', id), rest)
-  } else {
-    const all = readLocalTeams()
-    all[id] = { ...all[id], ...team, updatedAt: now }
-    writeLocalTeams(all)
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) {
+      const { id: _omit, ...rest } = team
+      void _omit
+      await fb.firestore.setDoc(fb.firestore.doc(fb.db, 'teams', id), rest)
+      return id
+    }
   }
+  const all = readLocalTeams()
+  all[id] = { ...all[id], ...team, updatedAt: now }
+  writeLocalTeams(all)
   return id
 }
 
 export async function deleteTeam(id: string) {
-  if (firebaseEnabled && db) return deleteDoc(doc(db, 'teams', id))
+  if (firebaseEnabled) {
+    const fb = await getFirebase()
+    if (fb) return fb.firestore.deleteDoc(fb.firestore.doc(fb.db, 'teams', id))
+  }
   const all = readLocalTeams()
   delete all[id]
   writeLocalTeams(all)

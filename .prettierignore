@@ -1,0 +1,6 @@
+dist
+node_modules
+legacy-java
+package-lock.json
+test-results
+playwright-report

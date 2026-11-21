@@ -1,5 +1,14 @@
 // State transitions used by the scorer panel. Kept pure so they can be unit-tested.
-import { computeState, isLegal, newBallId, strikerShouldRotate, type Ball, type Dismissal, type Extra, type Match } from './cricket'
+import {
+  computeState,
+  isLegal,
+  newBallId,
+  strikerShouldRotate,
+  type Ball,
+  type Dismissal,
+  type Extra,
+  type Match,
+} from './cricket'
 
 export interface Delivery {
   runs: number
