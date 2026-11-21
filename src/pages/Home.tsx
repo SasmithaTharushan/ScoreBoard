@@ -10,13 +10,32 @@ export default function Home() {
   const [matches, setMatches] = useState<Match[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mine, setMine] = useState(false)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'completed'>('all')
 
   useEffect(() => subscribeMatches(setMatches, (e) => setError(e.message)), [])
 
-  const list = useMemo(
-    () => (matches ?? []).filter((m) => !mine || m.ownerId === user?.uid).map((m) => ({ m, s: computeState(m) })),
-    [matches, mine, user],
-  )
+  const list = useMemo(() => {
+    return (matches ?? [])
+      .map((m) => ({ m, s: computeState(m) }))
+      .filter(({ m, s }) => {
+        if (mine && m.ownerId !== user?.uid) return false
+        if (search.trim()) {
+          const q = search.trim().toLowerCase()
+          const matchA = m.teamA.toLowerCase().includes(q)
+          const matchB = m.teamB.toLowerCase().includes(q)
+          const matchTitle = m.title.toLowerCase().includes(q)
+          if (!matchA && !matchB && !matchTitle) return false
+        }
+        if (statusFilter === 'live') {
+          const isLive = s.status === 'innings-1' || s.status === 'innings-2' || s.status === 'innings-break'
+          if (!isLive) return false
+        } else if (statusFilter === 'completed') {
+          if (s.status !== 'completed') return false
+        }
+        return true
+      })
+  }, [matches, mine, user, search, statusFilter])
 
   return (
     <div className="space-y-6">
@@ -36,22 +55,55 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="matches" className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+      <section id="matches" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold">Matches</h2>
-          {user && (
-            <div className="flex rounded-xl border border-slate-300 p-0.5 text-sm dark:border-slate-700">
-              {(['All', 'Mine'] as const).map((t) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Live / Completed filter */}
+            <div className="flex rounded-xl border border-slate-300 p-0.5 text-xs font-semibold dark:border-slate-700">
+              {(['all', 'live', 'completed'] as const).map((sf) => (
                 <button
-                  key={t}
-                  onClick={() => setMine(t === 'Mine')}
-                  className={`rounded-lg px-3 py-1 ${mine === (t === 'Mine') ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : ''}`}
+                  key={sf}
+                  onClick={() => setStatusFilter(sf)}
+                  className={`rounded-lg px-2.5 py-1 uppercase tracking-wider ${
+                    statusFilter === sf
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
                 >
-                  {t}
+                  {sf === 'live' ? '● Live' : sf}
                 </button>
               ))}
             </div>
-          )}
+
+            {/* All / Mine filter */}
+            {user && (
+              <div className="flex rounded-xl border border-slate-300 p-0.5 text-xs font-semibold dark:border-slate-700">
+                {(['All', 'Mine'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setMine(t === 'Mine')}
+                    className={`rounded-lg px-2.5 py-1 ${
+                      mine === (t === 'Mine') ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Team Search Input */}
+        <div>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search matches by team or title…"
+            className="input text-sm"
+          />
         </div>
         {error && <div className="card text-sm text-red-600">Couldn't load matches: {error}</div>}
         {!matches && !error && <div className="card animate-pulse text-sm text-slate-500">Loading matches…</div>}

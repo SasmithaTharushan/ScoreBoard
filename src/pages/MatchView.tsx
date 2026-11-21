@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import LiveCard from '../components/LiveCard'
 import { InningsStats, ScorecardTable, WormChart } from '../components/ScoreParts'
 import { useAuth } from '../lib/auth'
+import { matchToCsv } from '../lib/cricket'
 import { useMatch } from '../lib/useMatch'
 
 export default function MatchView() {
@@ -44,6 +45,18 @@ export default function MatchView() {
     }
   }
 
+  const downloadCsv = () => {
+    if (!m) return
+    const csvContent = matchToCsv(m)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${m.teamA}-vs-${m.teamB}-scorecard.csv`.replace(/\s+/g, '-').toLowerCase()
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -53,8 +66,14 @@ export default function MatchView() {
         <Link to={`/match/${m.id}/tv`} className="btn-ghost" title="Full-screen scoreboard for TV or projector">
           📺 TV mode
         </Link>
+        <button onClick={downloadCsv} className="btn-ghost" title="Download ball-by-ball CSV log">
+          📥 CSV
+        </button>
+        <button onClick={() => window.print()} className="btn-ghost" title="Print or save as PDF">
+          🖨️ Print / PDF
+        </button>
         <button onClick={() => setShowQr(!showQr)} className="btn-ghost">
-          {showQr ? 'Hide QR' : '📱 QR Code'}
+          {showQr ? 'Hide QR' : '📱 QR'}
         </button>
         <button onClick={share} className="btn-ghost">{copied ? 'Link copied ✓' : 'Share'}</button>
         {user?.uid === m.ownerId && (

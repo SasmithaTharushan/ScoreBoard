@@ -427,3 +427,60 @@ export function computeState(m: Match): MatchState {
 export const strikerShouldRotate = (b: Pick<Ball, 'runs'>) => b.runs % 2 === 1
 
 export const newBallId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+
+export function matchToCsv(m: Match): string {
+  const headers = [
+    'Innings',
+    'BallNumber',
+    'Over',
+    'LegalBall',
+    'BattingTeam',
+    'Batter',
+    'Bowler',
+    'RunsOffBat',
+    'ExtraType',
+    'ExtraRuns',
+    'TotalRuns',
+    'Wicket',
+    'Dismissal',
+    'Fielder',
+    'Timestamp',
+  ]
+
+  let inn1Legal = 0
+  let inn2Legal = 0
+
+  const rows = m.balls.map((b, idx) => {
+    const isLegalDelivery = isLegal(b)
+    const legalInInn = b.innings === 1 ? inn1Legal : inn2Legal
+    if (isLegalDelivery) {
+      if (b.innings === 1) inn1Legal++
+      else inn2Legal++
+    }
+    const overString = `${Math.floor(legalInInn / 6)}.${legalInInn % 6}`
+    const battingTeam = teamName(m, b.innings === 1 ? m.battingFirst : other(m.battingFirst))
+    const extraRuns = b.extra === 'wd' || b.extra === 'nb' ? 1 : b.extra ? b.runs : 0
+    const runsOffBat = b.extra === null || b.extra === 'nb' ? b.runs : 0
+    const totalRuns = ballTotal(b)
+
+    return [
+      b.innings,
+      idx + 1,
+      overString,
+      isLegalDelivery ? 'Yes' : 'No',
+      `"${battingTeam.replace(/"/g, '""')}"`,
+      `"${(b.batter || '').replace(/"/g, '""')}"`,
+      `"${(b.bowler || '').replace(/"/g, '""')}"`,
+      runsOffBat,
+      b.extra || '',
+      extraRuns,
+      totalRuns,
+      b.wicket ? 'Yes' : 'No',
+      b.dismissal || '',
+      `"${(b.fielder || '').replace(/"/g, '""')}"`,
+      new Date(b.t).toISOString(),
+    ].join(',')
+  })
+
+  return [headers.join(','), ...rows].join('\n')
+}

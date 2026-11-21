@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ballLabel, computeState, formatToss, type Match } from './cricket'
+import { ballLabel, computeState, formatToss, matchToCsv, type Match } from './cricket'
 import { addBall, closeInnings, undo, type Delivery } from './scoring'
 
 function match(over: Partial<Match> = {}): Match {
@@ -228,5 +228,23 @@ describe('scoring engine', () => {
 
     const m3 = match()
     expect(formatToss(m3)).toBeNull()
+  })
+
+  it('exports ball-by-ball log as CSV', () => {
+    let m = match({ onField: { striker: 'Kusal', nonStriker: 'Pathum', bowler: 'Bumrah' } })
+    m = play(
+      m,
+      { runs: 4 },
+      { runs: 0, extra: 'wd' },
+      { runs: 0, wicket: true, dismissal: 'bowled' },
+    )
+    const csv = matchToCsv(m)
+    const lines = csv.trim().split('\n')
+    expect(lines).toHaveLength(4) // 1 header + 3 balls
+    expect(lines[0]).toContain('Innings,BallNumber,Over,LegalBall')
+    expect(lines[1]).toContain('"Kusal"')
+    expect(lines[1]).toContain('"Bumrah"')
+    expect(lines[2]).toContain('wd')
+    expect(lines[3]).toContain('bowled')
   })
 })
