@@ -35,6 +35,11 @@ export default function Scorer() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [field, setField] = useState<OnField>({ striker: '', nonStriker: '', bowler: '' })
+  const [manualTyping, setManualTyping] = useState<Record<keyof OnField, boolean>>({
+    striker: false,
+    nonStriker: false,
+    bowler: false,
+  })
 
   const editing = useRef<keyof OnField | null>(null)
 
@@ -93,7 +98,11 @@ export default function Scorer() {
 
   const done = state.status === 'completed'
   const runOptions = extra === 'wd' ? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4, 5, 6]
-  const batting = teamName(m, state.innings[state.currentInnings - 1].battingTeam)
+  const currentInningsSummary = state.innings[state.currentInnings - 1]
+  const battingTeamKey = currentInningsSummary.battingTeam
+  const batting = teamName(m, battingTeamKey)
+  const battingSquad = battingTeamKey === 'A' ? (m.teamAPlayers ?? []) : (m.teamBPlayers ?? [])
+  const bowlingSquad = battingTeamKey === 'A' ? (m.teamBPlayers ?? []) : (m.teamAPlayers ?? [])
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-24">
@@ -111,20 +120,66 @@ export default function Scorer() {
               {state.status === 'innings-break' ? `Start of 2nd innings · ${batting} batting` : `${batting} batting`}
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {(['striker', 'nonStriker', 'bowler'] as const).map((k) => (
-                <div key={k}>
-                  <label className="label" htmlFor={k}>{k === 'striker' ? 'Striker *' : k === 'nonStriker' ? 'Non-striker' : 'Bowler'}</label>
-                  <input
-                    id={k}
-                    className="input"
-                    value={field[k]}
-                    placeholder={k === 'bowler' ? 'Bowler' : 'Batter'}
-                    onChange={(e) => setField({ ...field, [k]: e.target.value })}
-                    onFocus={() => (editing.current = k)}
-                    onBlur={(e) => commitName(k, e.target.value)}
-                  />
-                </div>
-              ))}
+              {(['striker', 'nonStriker', 'bowler'] as const).map((k) => {
+                const squad = k === 'bowler' ? bowlingSquad : battingSquad
+                const isTyping = manualTyping[k] || squad.length === 0
+                const label = k === 'striker' ? 'Striker *' : k === 'nonStriker' ? 'Non-striker' : 'Bowler'
+                return (
+                  <div key={k}>
+                    <label className="label" htmlFor={k}>{label}</label>
+                    {!isTyping ? (
+                      <select
+                        id={k}
+                        className="input truncate text-xs"
+                        value={squad.includes(field[k]) ? field[k] : ''}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setManualTyping((prev) => ({ ...prev, [k]: true }))
+                          } else {
+                            setField((prev) => ({ ...prev, [k]: e.target.value }))
+                            commitName(k, e.target.value)
+                          }
+                        }}
+                      >
+                        <option value="">{field[k] || `Pick ${k === 'bowler' ? 'bowler' : 'batter'}…`}</option>
+                        {squad.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                        <option value="__custom__">✏️ Type name…</option>
+                      </select>
+                    ) : (
+                      <div>
+                        <input
+                          id={k}
+                          list={`${k}-datalist`}
+                          className="input text-xs"
+                          value={field[k]}
+                          placeholder={k === 'bowler' ? 'Bowler' : 'Batter'}
+                          onChange={(e) => setField({ ...field, [k]: e.target.value })}
+                          onFocus={() => (editing.current = k)}
+                          onBlur={(e) => commitName(k, e.target.value)}
+                        />
+                        <datalist id={`${k}-datalist`}>
+                          {squad.map((p) => (
+                            <option key={p} value={p} />
+                          ))}
+                        </datalist>
+                        {squad.length > 0 && (
+                          <button
+                            type="button"
+                            className="mt-0.5 text-[10px] text-emerald-600 underline"
+                            onClick={() => setManualTyping((prev) => ({ ...prev, [k]: false }))}
+                          >
+                            ← Pick from list
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             <button
               className="text-xs text-emerald-600 underline"

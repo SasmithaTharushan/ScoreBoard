@@ -30,6 +30,15 @@ export interface AppUser {
   email: string | null
 }
 
+export interface Team {
+  id: string
+  ownerId: string
+  name: string
+  players: string[]
+  createdAt: number
+  updatedAt: number
+}
+
 type Unsub = () => void
 export type NewMatch = Omit<Match, 'id' | 'ownerId' | 'balls' | 'closedInnings' | 'createdAt' | 'updatedAt'>
 
@@ -37,6 +46,7 @@ const genId = () => Math.random().toString(36).slice(2, 12)
 
 // ---------------------------------------------------------------- local demo backend
 const LS_MATCHES = 'scoreboard.matches'
+const LS_TEAMS = 'scoreboard.teams'
 const LS_USER = 'scoreboard.user'
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('scoreboard') : null
 const listeners = new Set<() => void>()
@@ -53,6 +63,18 @@ function readLocal(): Record<string, Match> {
 }
 function writeLocal(all: Record<string, Match>) {
   localStorage.setItem(LS_MATCHES, JSON.stringify(all))
+  notify()
+  channel?.postMessage('changed')
+}
+function readLocalTeams(): Record<string, Team> {
+  try {
+    return JSON.parse(localStorage.getItem(LS_TEAMS) || '{}')
+  } catch {
+    return {}
+  }
+}
+function writeLocalTeams(all: Record<string, Team>) {
+  localStorage.setItem(LS_TEAMS, JSON.stringify(all))
   notify()
   channel?.postMessage('changed')
 }
@@ -168,4 +190,47 @@ export async function deleteMatch(id: string) {
   const all = readLocal()
   delete all[id]
   writeLocal(all)
+}
+
+// ---------------------------------------------------------------- teams
+export function subscribeTeams(cb: (ts: Team[]) => void, onError?: (e: Error) => void): Unsub {
+  if (firebaseEnabled && db) {
+    const q = query(collection(db, 'teams'), orderBy('name', 'asc'), limit(100))
+    return onSnapshot(
+      q,
+      (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as Team), id: d.id }))),
+      (e) => onError?.(e),
+    )
+  }
+  return watchLocal(() => cb(Object.values(readLocalTeams()).sort((a, b) => a.name.localeCompare(b.name))))
+}
+
+export async function saveTeam(user: AppUser, data: { id?: string; name: string; players: string[] }): Promise<string> {
+  const now = Date.now()
+  const id = data.id || genId()
+  const team: Team = {
+    id,
+    ownerId: user.uid,
+    name: data.name.trim(),
+    players: data.players.map((p) => p.trim()).filter(Boolean),
+    createdAt: now,
+    updatedAt: now,
+  }
+  if (firebaseEnabled && db) {
+    const { id: _omit, ...rest } = team
+    void _omit
+    await setDoc(doc(db, 'teams', id), rest)
+  } else {
+    const all = readLocalTeams()
+    all[id] = { ...all[id], ...team, updatedAt: now }
+    writeLocalTeams(all)
+  }
+  return id
+}
+
+export async function deleteTeam(id: string) {
+  if (firebaseEnabled && db) return deleteDoc(doc(db, 'teams', id))
+  const all = readLocalTeams()
+  delete all[id]
+  writeLocalTeams(all)
 }

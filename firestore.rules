@@ -19,6 +19,28 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
 
+    match /teams/{teamId} {
+      // Anyone signed in can read saved teams.
+      allow read: if request.auth != null;
+
+      // Only the owner can create, update or delete their teams.
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && validTeam(request.resource.data);
+
+      allow update: if request.auth != null
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && validTeam(request.resource.data);
+
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    function validTeam(d) {
+      return d.name is string && d.name.size() <= 60
+        && d.players is list && d.players.size() <= 50;
+    }
+
     function validMatch(d) {
       return d.teamA is string && d.teamA.size() <= 60
         && d.teamB is string && d.teamB.size() <= 60

@@ -53,6 +53,8 @@ export interface Match {
   venue: string
   teamA: string
   teamB: string
+  teamAPlayers?: string[]
+  teamBPlayers?: string[]
   battingFirst: TeamKey
   oversPerInnings: number
   playersPerSide: number

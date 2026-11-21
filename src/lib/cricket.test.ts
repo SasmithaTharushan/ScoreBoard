@@ -209,4 +209,13 @@ describe('scoring engine', () => {
     expect(state.innings[0].batting).toEqual([])
     expect(state.innings[0].bowling).toEqual([])
   })
+
+  it('supports team player rosters on match', () => {
+    const m = match({
+      teamAPlayers: ['Kusal', 'Pathum', 'Charith'],
+      teamBPlayers: ['Rohit', 'Gill', 'Kohli'],
+    })
+    expect(m.teamAPlayers).toEqual(['Kusal', 'Pathum', 'Charith'])
+    expect(m.teamBPlayers).toEqual(['Rohit', 'Gill', 'Kohli'])
+  })
 })
