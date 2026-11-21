@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ballLabel, computeState, type Match } from './cricket'
+import { ballLabel, computeState, formatToss, type Match } from './cricket'
 import { addBall, closeInnings, undo, type Delivery } from './scoring'
 
 function match(over: Partial<Match> = {}): Match {
@@ -217,5 +217,16 @@ describe('scoring engine', () => {
     })
     expect(m.teamAPlayers).toEqual(['Kusal', 'Pathum', 'Charith'])
     expect(m.teamBPlayers).toEqual(['Rohit', 'Gill', 'Kohli'])
+  })
+
+  it('formats toss result correctly', () => {
+    const m1 = match({ toss: { winner: 'A', decision: 'bat' } })
+    expect(formatToss(m1)).toBe('Sri Lanka won the toss and chose to bat')
+
+    const m2 = match({ toss: { winner: 'B', decision: 'bowl' } })
+    expect(formatToss(m2)).toBe('India won the toss and chose to bowl')
+
+    const m3 = match()
+    expect(formatToss(m3)).toBeNull()
   })
 })

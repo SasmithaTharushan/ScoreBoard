@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import QRCode from 'qrcode'
 import LiveCard from '../components/LiveCard'
 import { InningsStats, ScorecardTable, WormChart } from '../components/ScoreParts'
 import { useAuth } from '../lib/auth'
@@ -10,6 +11,20 @@ export default function MatchView() {
   const { user } = useAuth()
   const { match: m, state, error, loading } = useMatch(id)
   const [copied, setCopied] = useState(false)
+  const [showQr, setShowQr] = useState(false)
+  const [qrUrl, setQrUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!m) return
+    const url = window.location.origin + `/match/${m.id}`
+    QRCode.toDataURL(url, {
+      width: 240,
+      margin: 2,
+      color: { dark: '#0f172a', light: '#ffffff' },
+    })
+      .then(setQrUrl)
+      .catch(() => {})
+  }, [m?.id])
 
   if (loading) return <div className="card animate-pulse text-sm text-slate-500">Loading scoreboard…</div>
   if (error) return <div className="card text-sm text-red-600">{error}</div>
@@ -35,11 +50,35 @@ export default function MatchView() {
         <h1 className="mr-auto text-xl font-bold">
           {m.teamA} <span className="text-slate-400">vs</span> {m.teamB}
         </h1>
+        <Link to={`/match/${m.id}/tv`} className="btn-ghost" title="Full-screen scoreboard for TV or projector">
+          📺 TV mode
+        </Link>
+        <button onClick={() => setShowQr(!showQr)} className="btn-ghost">
+          {showQr ? 'Hide QR' : '📱 QR Code'}
+        </button>
         <button onClick={share} className="btn-ghost">{copied ? 'Link copied ✓' : 'Share'}</button>
         {user?.uid === m.ownerId && (
           <Link to={`/match/${m.id}/score`} className="btn-primary">Open scorer</Link>
         )}
       </div>
+
+      {showQr && (
+        <div className="card mx-auto max-w-sm space-y-3 p-6 text-center border-emerald-500/30">
+          <h3 className="font-bold">Scan to follow match</h3>
+          {qrUrl && (
+            <img
+              src={qrUrl}
+              alt="Match QR Code"
+              className="mx-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
+            />
+          )}
+          <p className="text-xs text-slate-500">Scan with your phone's camera to watch this scoreboard live.</p>
+          <button onClick={() => setShowQr(false)} className="btn-ghost text-xs py-1">
+            Close
+          </button>
+        </div>
+      )}
+
       <LiveCard m={m} state={state} />
       <div className="space-y-4">
         <h2 className="text-lg font-bold">Scorecard</h2>

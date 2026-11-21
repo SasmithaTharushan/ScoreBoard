@@ -1,5 +1,5 @@
 import type { Match, MatchState } from '../lib/cricket'
-import { teamName } from '../lib/cricket'
+import { formatToss, teamName } from '../lib/cricket'
 import { BallChip, InningsLine, StatusBadge } from './ScoreParts'
 
 export default function LiveCard({ m, state }: { m: Match; state: MatchState }) {
@@ -17,6 +17,11 @@ export default function LiveCard({ m, state }: { m: Match; state: MatchState }) 
         </span>
         <StatusBadge state={state} />
       </div>
+      {m.toss && (
+        <div className="px-5 pt-1 text-[11px] text-emerald-300/90 font-medium">
+          🪙 {formatToss(m)}
+        </div>
+      )}
 
       {showCurrent ? (
         <div className="px-5 pb-4 pt-3">

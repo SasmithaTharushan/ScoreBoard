@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import NewMatch from './pages/NewMatch'
 import MatchView from './pages/MatchView'
 import Scorer from './pages/Scorer'
+import TvScoreboard from './pages/TvScoreboard'
 
 function ThemeToggle() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/new" element={<NewMatch />} />
           <Route path="/match/:id" element={<MatchView />} />
           <Route path="/match/:id/score" element={<Scorer />} />
+          <Route path="/match/:id/tv" element={<TvScoreboard />} />
           <Route
             path="*"
             element={

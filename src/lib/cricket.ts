@@ -6,6 +6,11 @@ export type Dismissal = 'bowled' | 'caught' | 'lbw' | 'run out' | 'stumped' | 'h
 export type TeamKey = 'A' | 'B'
 export type InningsNo = 1 | 2
 
+export interface Toss {
+  winner: TeamKey
+  decision: 'bat' | 'bowl'
+}
+
 export interface Ball {
   id: string
   innings: InningsNo
@@ -55,6 +60,7 @@ export interface Match {
   teamB: string
   teamAPlayers?: string[]
   teamBPlayers?: string[]
+  toss?: Toss
   battingFirst: TeamKey
   oversPerInnings: number
   playersPerSide: number
@@ -110,6 +116,12 @@ export const formatOvers = (legalBalls: number) => `${Math.floor(legalBalls / 6)
 export const teamName = (m: Pick<Match, 'teamA' | 'teamB'>, k: TeamKey) => (k === 'A' ? m.teamA : m.teamB)
 
 export const other = (k: TeamKey): TeamKey => (k === 'A' ? 'B' : 'A')
+
+export function formatToss(m: Pick<Match, 'teamA' | 'teamB' | 'toss'>): string | null {
+  if (!m.toss) return null
+  const winner = teamName(m, m.toss.winner)
+  return `${winner} won the toss and chose to ${m.toss.decision}`
+}
 
 /** Short label used in the "this over" ball strip, e.g. "4", "W", "1wd", "nb4", "2lb". */
 export function ballLabel(b: Ball): string {

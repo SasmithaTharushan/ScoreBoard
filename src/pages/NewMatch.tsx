@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { useAuth } from '../lib/auth'
-import type { TeamKey } from '../lib/cricket'
+import type { TeamKey, Toss } from '../lib/cricket'
 import { createMatch, saveTeam, subscribeTeams, type Team } from '../lib/store'
 
 const PRESETS = [
@@ -25,6 +25,9 @@ export default function NewMatch() {
   const [savedTeams, setSavedTeams] = useState<Team[]>([])
   const [overs, setOvers] = useState(20)
   const [players, setPlayers] = useState(11)
+  const [hasToss, setHasToss] = useState(false)
+  const [tossWinner, setTossWinner] = useState<TeamKey>('A')
+  const [tossDecision, setTossDecision] = useState<'bat' | 'bowl'>('bat')
   const [battingFirst, setBattingFirst] = useState<TeamKey>('A')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +73,18 @@ export default function NewMatch() {
         await saveTeam(user, { name: teamB.trim(), players: parsedB })
       }
 
+      const effectiveBattingFirst: TeamKey = hasToss
+        ? tossDecision === 'bat'
+          ? tossWinner
+          : tossWinner === 'A'
+          ? 'B'
+          : 'A'
+        : battingFirst
+
+      const toss: Toss | undefined = hasToss
+        ? { winner: tossWinner, decision: tossDecision }
+        : undefined
+
       const id = await createMatch(user, {
         title: title.trim() || 'Match',
         venue: venue.trim(),
@@ -77,7 +92,8 @@ export default function NewMatch() {
         teamB: teamB.trim() || 'Visitors',
         teamAPlayers: parsedA.slice(0, players),
         teamBPlayers: parsedB.slice(0, players),
-        battingFirst,
+        toss,
+        battingFirst: effectiveBattingFirst,
         oversPerInnings: overs,
         playersPerSide: players,
         onField: { striker: '', nonStriker: '', bowler: '' },
@@ -209,15 +225,72 @@ export default function NewMatch() {
             <input id="players" type="number" min={2} max={15} className="input" value={players} onChange={(e) => setPlayers(Math.min(15, Math.max(2, +e.target.value || 2)))} />
           </div>
         </div>
-        <div>
-          <span className="label">Who bats first?</span>
-          <div className="grid grid-cols-2 gap-2">
-            {(['A', 'B'] as const).map((k) => (
-              <button type="button" key={k} onClick={() => setBattingFirst(k)} className={battingFirst === k ? 'btn-primary' : 'btn-ghost'}>
-                {(k === 'A' ? teamA : teamB) || (k === 'A' ? 'Home team' : 'Visiting team')}
-              </button>
-            ))}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="label mb-0">Toss &amp; Batting First</span>
+            <button
+              type="button"
+              className="text-xs text-emerald-600 dark:text-emerald-400 underline"
+              onClick={() => setHasToss(!hasToss)}
+            >
+              {hasToss ? 'Skip toss (choose manually)' : '+ Record toss result'}
+            </button>
           </div>
+
+          {hasToss ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/20 space-y-3">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Who won the toss?</span>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {(['A', 'B'] as const).map((k) => (
+                    <button
+                      type="button"
+                      key={k}
+                      onClick={() => setTossWinner(k)}
+                      className={`btn py-2 text-xs font-bold ${
+                        tossWinner === k ? 'btn-primary' : 'btn-ghost'
+                      }`}
+                    >
+                      {(k === 'A' ? teamA : teamB) || (k === 'A' ? 'Home' : 'Visiting')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Elected to?</span>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {(['bat', 'bowl'] as const).map((d) => (
+                    <button
+                      type="button"
+                      key={d}
+                      onClick={() => setTossDecision(d)}
+                      className={`btn py-2 text-xs font-bold uppercase ${
+                        tossDecision === d ? 'btn-primary' : 'btn-ghost'
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                🪙 {(tossWinner === 'A' ? teamA : teamB) || 'Winner'} won the toss and elected to {tossDecision}.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <span className="label">Who bats first?</span>
+              <div className="grid grid-cols-2 gap-2">
+                {(['A', 'B'] as const).map((k) => (
+                  <button type="button" key={k} onClick={() => setBattingFirst(k)} className={battingFirst === k ? 'btn-primary' : 'btn-ghost'}>
+                    {(k === 'A' ? teamA : teamB) || (k === 'A' ? 'Home team' : 'Visiting team')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
