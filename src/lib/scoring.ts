@@ -1,22 +1,37 @@
 // State transitions used by the scorer panel. Kept pure so they can be unit-tested.
-import { computeState, isLegal, newBallId, strikerShouldRotate, type Ball, type Extra, type Match } from './cricket'
+import { computeState, isLegal, newBallId, strikerShouldRotate, type Ball, type Dismissal, type Extra, type Match } from './cricket'
 
 export interface Delivery {
   runs: number
   extra: Extra
   wicket: boolean
+  dismissal?: Dismissal
+  fielder?: string
 }
 
 export function addBall(m: Match, d: Delivery, now = Date.now()): Partial<Match> {
   const state = computeState(m)
   if (state.status === 'completed') throw new Error('The match is already over')
-  const ball: Ball = { id: newBallId(), innings: state.currentInnings, runs: d.runs, extra: d.extra, wicket: d.wicket, t: now }
 
   let { striker, nonStriker, bowler } = m.onField
   if (state.status === 'innings-break') {
     // first ball of the chase: field names belong to the previous innings
     striker = nonStriker = bowler = ''
   }
+
+  const ball: Ball = {
+    id: newBallId(),
+    innings: state.currentInnings,
+    runs: d.runs,
+    extra: d.extra,
+    wicket: d.wicket,
+    t: now,
+    batter: striker.trim() || undefined,
+    bowler: bowler.trim() || undefined,
+    dismissal: d.wicket ? (d.dismissal !== undefined ? d.dismissal : 'bowled') : null,
+    fielder: d.wicket && d.fielder?.trim() ? d.fielder.trim() : undefined,
+  }
+
   if (strikerShouldRotate(ball)) [striker, nonStriker] = [nonStriker, striker]
   if (ball.wicket) striker = ''
   const balls = [...m.balls, ball]

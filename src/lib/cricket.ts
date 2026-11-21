@@ -2,6 +2,7 @@
 // ball-by-ball log, so there are no separate counters that can drift out of sync.
 
 export type Extra = 'wd' | 'nb' | 'b' | 'lb' | null
+export type Dismissal = 'bowled' | 'caught' | 'lbw' | 'run out' | 'stumped' | 'hit wicket' | null
 export type TeamKey = 'A' | 'B'
 export type InningsNo = 1 | 2
 
@@ -14,6 +15,29 @@ export interface Ball {
   wicket: boolean
   /** Epoch ms when the ball was recorded. */
   t: number
+  batter?: string
+  bowler?: string
+  dismissal?: Dismissal
+  fielder?: string
+}
+
+export interface BattingRow {
+  batter: string
+  runs: number
+  ballsFaced: number
+  fours: number
+  sixes: number
+  strikeRate: number
+  howOut: string
+}
+
+export interface BowlingRow {
+  bowler: string
+  overs: string
+  maidens: number
+  runsConceded: number
+  wickets: number
+  economy: number
 }
 
 export interface OnField {
@@ -56,6 +80,8 @@ export interface InningsSummary {
   /** Balls grouped per over, newest last. */
   overs_: Ball[][]
   complete: boolean
+  batting: BattingRow[]
+  bowling: BowlingRow[]
 }
 
 export type MatchStatus = 'not-started' | 'innings-1' | 'innings-break' | 'innings-2' | 'completed'
@@ -103,6 +129,36 @@ export function ballLabel(b: Ball): string {
   return b.wicket ? (s === '•' ? 'W' : `${s}W`) : s
 }
 
+export function formatHowOut(
+  dismissal: Dismissal | undefined,
+  bowler?: string,
+  fielder?: string,
+): string {
+  const b = bowler?.trim()
+  const f = fielder?.trim()
+  switch (dismissal) {
+    case 'bowled':
+      return b ? `b ${b}` : 'bowled'
+    case 'caught':
+      if (f && b && f.toLowerCase() === b.toLowerCase()) return `c & b ${b}`
+      if (f && b) return `c ${f} b ${b}`
+      if (b) return `c b ${b}`
+      return f ? `c ${f}` : 'caught'
+    case 'lbw':
+      return b ? `lbw b ${b}` : 'lbw'
+    case 'run out':
+      return f ? `run out (${f})` : 'run out'
+    case 'stumped':
+      if (f && b) return `st ${f} b ${b}`
+      if (b) return `st b ${b}`
+      return f ? `st ${f}` : 'stumped'
+    case 'hit wicket':
+      return b ? `hit wicket b ${b}` : 'hit wicket'
+    default:
+      return b ? `b ${b}` : 'out'
+  }
+}
+
 function summarise(m: Match, no: InningsNo, target: number | null): InningsSummary {
   const balls = m.balls.filter((b) => b.innings === no)
   const battingTeam = no === 1 ? m.battingFirst : other(m.battingFirst)
@@ -117,6 +173,56 @@ function summarise(m: Match, no: InningsNo, target: number | null): InningsSumma
   const overs_: Ball[][] = []
   const cumulativeByOver: number[] = []
   let current: Ball[] = []
+
+  interface BatterStats {
+    batter: string
+    runs: number
+    ballsFaced: number
+    fours: number
+    sixes: number
+    howOut: string
+  }
+  const batterMap = new Map<string, BatterStats>()
+
+  function getOrCreateBatter(name: string): BatterStats {
+    let entry = batterMap.get(name)
+    if (!entry) {
+      entry = {
+        batter: name,
+        runs: 0,
+        ballsFaced: 0,
+        fours: 0,
+        sixes: 0,
+        howOut: 'not out',
+      }
+      batterMap.set(name, entry)
+    }
+    return entry
+  }
+
+  interface BowlerStats {
+    bowler: string
+    legalBalls: number
+    maidens: number
+    runsConceded: number
+    wickets: number
+  }
+  const bowlerMap = new Map<string, BowlerStats>()
+
+  function getOrCreateBowler(name: string): BowlerStats {
+    let entry = bowlerMap.get(name)
+    if (!entry) {
+      entry = {
+        bowler: name,
+        legalBalls: 0,
+        maidens: 0,
+        runsConceded: 0,
+        wickets: 0,
+      }
+      bowlerMap.set(name, entry)
+    }
+    return entry
+  }
 
   for (const b of balls) {
     const total = ballTotal(b)
@@ -140,12 +246,91 @@ function summarise(m: Match, no: InningsNo, target: number | null): InningsSumma
         current = []
       }
     }
+
+    // Batting stats
+    if (b.batter && b.batter.trim()) {
+      const btr = getOrCreateBatter(b.batter.trim())
+      if (b.extra !== 'wd') {
+        btr.ballsFaced++
+      }
+      if (b.extra === null || b.extra === 'nb') {
+        btr.runs += b.runs
+        if (b.runs === 4) btr.fours++
+        if (b.runs === 6) btr.sixes++
+      }
+      if (b.wicket) {
+        btr.howOut = formatHowOut(b.dismissal, b.bowler, b.fielder)
+      }
+    }
+
+    // Bowling stats
+    if (b.bowler && b.bowler.trim()) {
+      const bwl = getOrCreateBowler(b.bowler.trim())
+      if (isLegal(b)) {
+        bwl.legalBalls++
+      }
+      if (b.extra === 'wd' || b.extra === 'nb') {
+        bwl.runsConceded += b.runs + 1
+      } else if (b.extra === null) {
+        bwl.runsConceded += b.runs
+      }
+      if (b.wicket && b.dismissal !== 'run out') {
+        bwl.wickets++
+      }
+    }
   }
   if (current.length) {
     overs_.push(current)
     cumulativeByOver.push(runs)
   }
   extras.total = extras.wd + extras.nb + extras.b + extras.lb
+
+  // Calculate maidens
+  for (const overBalls of overs_) {
+    const legalCount = overBalls.filter(isLegal).length
+    if (legalCount === 6) {
+      const bowlersInOver = new Set(
+        overBalls
+          .map((b) => b.bowler?.trim())
+          .filter(Boolean) as string[],
+      )
+      for (const bName of bowlersInOver) {
+        const bowlerBalls = overBalls.filter((b) => b.bowler?.trim() === bName)
+        const bowlerLegal = bowlerBalls.filter(isLegal).length
+        const bowlerRuns = bowlerBalls.reduce((sum, b) => {
+          if (b.extra === 'wd' || b.extra === 'nb') return sum + b.runs + 1
+          if (b.extra === null) return sum + b.runs
+          return sum
+        }, 0)
+        if (bowlerLegal === 6 && bowlerRuns === 0) {
+          const bs = bowlerMap.get(bName)
+          if (bs) bs.maidens++
+        }
+      }
+    }
+  }
+
+  // Include on-field batters for active innings if batting stats are in use or match starting
+  const hasBatterData = balls.some((b) => b.batter && b.batter.trim())
+  const isInningsCurrent = (no === 1 && !m.balls.some((b) => b.innings === 2)) || no === 2
+  if (isInningsCurrent && (hasBatterData || balls.length === 0)) {
+    if (m.onField.striker?.trim()) getOrCreateBatter(m.onField.striker.trim())
+    if (m.onField.nonStriker?.trim()) getOrCreateBatter(m.onField.nonStriker.trim())
+  }
+
+  const batting: BattingRow[] = Array.from(batterMap.values()).map((bs) => ({
+    ...bs,
+    strikeRate: bs.ballsFaced ? (bs.runs / bs.ballsFaced) * 100 : 0,
+  }))
+
+  const bowling: BowlingRow[] = Array.from(bowlerMap.values()).map((bs) => ({
+    bowler: bs.bowler,
+    overs: formatOvers(bs.legalBalls),
+    maidens: bs.maidens,
+    runsConceded: bs.runsConceded,
+    wickets: bs.wickets,
+    economy: bs.legalBalls ? (bs.runsConceded / bs.legalBalls) * 6 : 0,
+  }))
 
   const complete =
     m.closedInnings.includes(no) ||
@@ -167,6 +352,8 @@ function summarise(m: Match, no: InningsNo, target: number | null): InningsSumma
     cumulativeByOver,
     overs_,
     complete,
+    batting,
+    bowling,
   }
 }
 

@@ -1,5 +1,5 @@
 import type { Ball, InningsSummary, Match, MatchState } from '../lib/cricket'
-import { ballLabel, teamName } from '../lib/cricket'
+import { ballLabel, other, teamName } from '../lib/cricket'
 
 export function BallChip({ ball, size = 'md' }: { ball: Ball; size?: 'sm' | 'md' }) {
   const label = ballLabel(ball)
@@ -156,6 +156,115 @@ export function InningsStats({ m, inn }: { m: Match; inn: InningsSummary }) {
           </ol>
         </details>
       )}
+    </div>
+  )
+}
+
+export function ScorecardTable({ m, inn }: { m: Match; inn: InningsSummary }) {
+  const battingTeam = teamName(m, inn.battingTeam)
+  const bowlingTeam = teamName(m, inn.no === 1 ? other(m.battingFirst) : m.battingFirst)
+  const hasBatting = inn.batting.length > 0
+  const hasBowling = inn.bowling.length > 0
+
+  return (
+    <div className="card space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
+        <h3 className="font-bold">
+          {inn.no === 1 ? '1st' : '2nd'} innings — {battingTeam} Batting
+        </h3>
+        <span className="tabular font-semibold">
+          {inn.runs}/{inn.wickets} <span className="text-sm font-normal text-slate-500">({inn.overs} ov)</span>
+        </span>
+      </div>
+
+      {/* Batting Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-slate-800">
+              <th className="py-2 pr-4 font-semibold">Batter</th>
+              <th className="py-2 pr-4 font-semibold">Dismissal</th>
+              <th className="py-2 px-2 text-right font-semibold">R</th>
+              <th className="py-2 px-2 text-right font-semibold">B</th>
+              <th className="py-2 px-2 text-right font-semibold">4s</th>
+              <th className="py-2 px-2 text-right font-semibold">6s</th>
+              <th className="py-2 pl-2 text-right font-semibold">SR</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            {hasBatting ? (
+              inn.batting.map((b) => (
+                <tr key={b.batter}>
+                  <td className="py-2 pr-4 font-medium">{b.batter}</td>
+                  <td className="py-2 pr-4 text-xs text-slate-500">{b.howOut}</td>
+                  <td className="py-2 px-2 text-right font-bold tabular">{b.runs}</td>
+                  <td className="py-2 px-2 text-right tabular text-slate-500">{b.ballsFaced}</td>
+                  <td className="py-2 px-2 text-right tabular text-slate-500">{b.fours}</td>
+                  <td className="py-2 px-2 text-right tabular text-slate-500">{b.sixes}</td>
+                  <td className="py-2 pl-2 text-right tabular text-slate-500">{b.strikeRate.toFixed(1)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="py-3 text-center text-xs text-slate-500">
+                  No batting data recorded yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-slate-200 text-xs text-slate-500 dark:border-slate-800">
+              <td colSpan={2} className="py-2 font-medium">
+                Extras: {inn.extras.total} (wd {inn.extras.wd}, nb {inn.extras.nb}, b {inn.extras.b}, lb {inn.extras.lb})
+              </td>
+              <td colSpan={5} className="py-2 text-right font-bold tabular text-slate-700 dark:text-slate-300">
+                Total: {inn.runs}/{inn.wickets} ({inn.overs} ov)
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Bowling Table */}
+      <div className="space-y-2 pt-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          {bowlingTeam} Bowling
+        </h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-slate-800">
+                <th className="py-2 pr-4 font-semibold">Bowler</th>
+                <th className="py-2 px-2 text-right font-semibold">O</th>
+                <th className="py-2 px-2 text-right font-semibold">M</th>
+                <th className="py-2 px-2 text-right font-semibold">R</th>
+                <th className="py-2 px-2 text-right font-semibold">W</th>
+                <th className="py-2 pl-2 text-right font-semibold">Econ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {hasBowling ? (
+                inn.bowling.map((bw) => (
+                  <tr key={bw.bowler}>
+                    <td className="py-2 pr-4 font-medium">{bw.bowler}</td>
+                    <td className="py-2 px-2 text-right tabular">{bw.overs}</td>
+                    <td className="py-2 px-2 text-right tabular text-slate-500">{bw.maidens}</td>
+                    <td className="py-2 px-2 text-right tabular text-slate-500">{bw.runsConceded}</td>
+                    <td className="py-2 px-2 text-right font-bold tabular">{bw.wickets}</td>
+                    <td className="py-2 pl-2 text-right tabular text-slate-500">{bw.economy.toFixed(2)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="py-3 text-center text-xs text-slate-500">
+                    No bowling data recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

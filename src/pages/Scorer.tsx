@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import LiveCard from '../components/LiveCard'
 import { useAuth } from '../lib/auth'
-import { teamName, type Extra, type OnField } from '../lib/cricket'
+import { teamName, type Dismissal, type Extra, type OnField } from '../lib/cricket'
 import { addBall, closeInnings, undo, type Delivery } from '../lib/scoring'
 import { deleteMatch, updateMatch } from '../lib/store'
 import { useMatch } from '../lib/useMatch'
@@ -14,6 +14,15 @@ const EXTRAS: { key: Exclude<Extra, null>; label: string }[] = [
   { key: 'lb', label: 'Leg bye' },
 ]
 
+const DISMISSALS: { key: NonNullable<Dismissal>; label: string; needsFielder?: boolean }[] = [
+  { key: 'bowled', label: 'Bowled' },
+  { key: 'caught', label: 'Caught', needsFielder: true },
+  { key: 'lbw', label: 'LBW' },
+  { key: 'run out', label: 'Run out', needsFielder: true },
+  { key: 'stumped', label: 'Stumped', needsFielder: true },
+  { key: 'hit wicket', label: 'Hit wicket' },
+]
+
 export default function Scorer() {
   const { id } = useParams()
   const nav = useNavigate()
@@ -21,6 +30,8 @@ export default function Scorer() {
   const { match: m, state, error, loading } = useMatch(id)
   const [extra, setExtra] = useState<Extra>(null)
   const [wicket, setWicket] = useState(false)
+  const [dismissal, setDismissal] = useState<NonNullable<Dismissal>>('bowled')
+  const [fielder, setFielder] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [field, setField] = useState<OnField>({ striker: '', nonStriker: '', bowler: '' })
@@ -60,10 +71,19 @@ export default function Scorer() {
     }
   }
 
-  const record = (runs: number, d: Delivery = { runs, extra, wicket }) => {
+  const record = (runs: number, d?: Delivery) => {
+    const delivery: Delivery = d ?? {
+      runs,
+      extra,
+      wicket,
+      dismissal: wicket ? dismissal : null,
+      fielder: wicket && fielder.trim() ? fielder.trim() : undefined,
+    }
     setExtra(null)
     setWicket(false)
-    return act((cur) => addBall({ ...cur, onField: field }, d))
+    setDismissal('bowled')
+    setFielder('')
+    return act((cur) => addBall({ ...cur, onField: field }, delivery))
   }
 
   const commitName = (k: keyof OnField, value: string) => {
@@ -121,13 +141,63 @@ export default function Scorer() {
                   {x.label}
                 </button>
               ))}
-              <button onClick={() => setWicket(!wicket)} className={wicket ? 'btn-danger' : 'btn-ghost'}>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !wicket
+                  setWicket(next)
+                  if (!next) {
+                    setDismissal('bowled')
+                    setFielder('')
+                  }
+                }}
+                className={wicket ? 'btn-danger' : 'btn-ghost'}
+              >
                 Wicket
               </button>
             </div>
+
+            {wicket && (
+              <div className="rounded-xl border border-red-200 bg-red-50/60 p-3 dark:border-red-900/50 dark:bg-red-950/20 space-y-2.5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                  Dismissal Type &amp; Fielder
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DISMISSALS.map((d) => (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => setDismissal(d.key)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                        dismissal === d.key
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+                {['caught', 'run out', 'stumped'].includes(dismissal) && (
+                  <div>
+                    <label className="label" htmlFor="fielder">
+                      {dismissal === 'run out' ? 'Fielder (run out by)' : dismissal === 'stumped' ? 'Wicketkeeper' : 'Catcher'}
+                    </label>
+                    <input
+                      id="fielder"
+                      className="input"
+                      value={fielder}
+                      placeholder="Fielder name (optional)"
+                      onChange={(e) => setFielder(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="text-xs text-slate-500">
               {extra || wicket
-                ? `Now tap the runs ${extra === 'wd' ? 'taken on the wide (the 1-run penalty is added automatically)' : extra === 'nb' ? 'off the bat (the 1-run penalty is added automatically)' : extra ? 'taken' : 'scored on this ball'}${wicket ? ' — a wicket will be recorded' : ''}.`
+                ? `Now tap the runs ${extra === 'wd' ? 'taken on the wide (the 1-run penalty is added automatically)' : extra === 'nb' ? 'off the bat (the 1-run penalty is added automatically)' : extra ? 'taken' : 'scored on this ball'}${wicket ? ` — a wicket (${dismissal}) will be recorded` : ''}.`
                 : 'Tap the runs scored. Choose an extra or wicket first if needed.'}
             </p>
             <div className="grid grid-cols-4 gap-2">
@@ -144,7 +214,15 @@ export default function Scorer() {
                 </button>
               ))}
               {extra === null && !wicket && (
-                <button disabled={busy} onClick={() => record(0, { runs: 0, extra: null, wicket: true })} className="btn-danger h-16 text-2xl font-black" title="Wicket">
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setWicket(true)
+                    setDismissal('bowled')
+                  }}
+                  className="btn-danger h-16 text-2xl font-black"
+                  title="Wicket"
+                >
                   W
                 </button>
               )}

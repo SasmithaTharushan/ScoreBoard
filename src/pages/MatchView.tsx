@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import LiveCard from '../components/LiveCard'
-import { InningsStats, WormChart } from '../components/ScoreParts'
+import { InningsStats, ScorecardTable, WormChart } from '../components/ScoreParts'
 import { useAuth } from '../lib/auth'
 import { useMatch } from '../lib/useMatch'
 
@@ -41,6 +41,14 @@ export default function MatchView() {
         )}
       </div>
       <LiveCard m={m} state={state} />
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold">Scorecard</h2>
+        {state.innings
+          .filter((inn) => inn.no === 1 || m.balls.some((b) => b.innings === 2))
+          .map((inn) => (
+            <ScorecardTable key={inn.no} m={m} inn={inn} />
+          ))}
+      </div>
       <div className="card">
         <h2 className="mb-2 font-semibold">Runs per over</h2>
         <WormChart m={m} state={state} />
